@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# editor
+.vscode/
+.idea/
+
+# local server temp
+*.log
+
+# environment
+.env

@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Washington Rail-Served Properties — Industrial Real Estate Inventory</title>
+  <meta name="description" content="An interactive inventory of every parcel in Washington State with private rail access. 671 properties, $9.3B in assessed value, 29 counties, 15 industries. Built by Alex Schulz." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg-base: #F4F1EA;
+      --bg-soft: #FBF8F1;
+      --bg-surface: #FFFFFF;
+      --bg-deep: #ECE7DC;
+      --text-primary: #1B1F23;
+      --text-body: #2E343B;
+      --text-muted: #5A6068;
+      --text-faint: #828892;
+      --hairline: #D6D3CB;
+      --hairline-strong: #BDBAB1;
+      --hairline-soft: #E5E1D7;
+      --rr-red: #9B2C2C;
+      --rr-red-soft: #F0DFDD;
+      --rr-red-deep: #722121;
+      --steel: #234E70;
+
+      --tier-agriculture: #8B9A4F;
+      --tier-heavy: #3F4751;
+      --tier-energy: #9B2C2C;
+      --tier-logistics: #234E70;
+      --tier-other: #8B8779;
+
+      --topbar-h: 46px;
+      --glass-bg: rgba(251, 248, 241, 0.92);
+      --glass-bg-strong: rgba(255, 255, 255, 0.96);
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text-body); background: var(--bg-base);
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    }
+    body { margin: 0; font-weight: 400; font-size: 16px; line-height: 1.55; overflow: hidden; }
+    ::selection { background: var(--rr-red); color: var(--bg-soft); }
+    a { color: var(--rr-red); text-decoration: underline; text-underline-offset: 0.2em; text-decoration-thickness: 1px; text-decoration-color: rgba(155, 44, 44, 0.35); transition: text-decoration-color 180ms ease, color 180ms ease; }
+    a:hover { color: var(--rr-red-deep); text-decoration-color: var(--rr-red); }
+    :focus-visible { outline: 2px solid var(--rr-red); outline-offset: 3px; }
+    button { font-family: inherit; cursor: pointer; }
+
+    /* ==== Topbar ==== */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 60;
+      height: var(--topbar-h);
+      background: var(--glass-bg);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--hairline);
+    }
+    .topbar-inner {
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      height: 100%; padding-inline: 1rem;
+      max-width: 100rem; margin-inline: auto;
+    }
+    @media (min-width: 768px) { .topbar-inner { padding-inline: 1.5rem; } }
+    .topbar a.brand { color: var(--text-primary); text-decoration: none; font-weight: 500; font-size: 0.875rem; letter-spacing: 0.02em; }
+    .topbar a.brand:hover { color: var(--rr-red); }
+    .topbar-center {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--text-muted); display: none;
+    }
+    @media (min-width: 720px) { .topbar-center { display: block; } }
+    .topbar-nav { display: flex; align-items: center; gap: 0.4rem; }
+    .topbar-nav button, .topbar-nav a {
+      color: var(--text-muted); text-decoration: none;
+      font-family: "IBM Plex Mono", monospace; font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
+      padding: 0.35rem 0.6rem; border-radius: 0.2rem;
+      background: transparent; border: 1px solid transparent;
+      transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+    }
+    .topbar-nav button:hover, .topbar-nav a:hover { color: var(--rr-red); background: var(--rr-red-soft); }
+
+    /* ==== Map area ==== */
+    .map-area {
+      position: relative;
+      width: 100%; height: 100vh;
+      padding-top: var(--topbar-h);
+      background: var(--bg-soft);
+    }
+    #map {
+      position: absolute;
+      top: var(--topbar-h); left: 0; right: 0; bottom: 0;
+      width: 100%;
+    }
+    .map-loading::after {
+      content: "Loading rail-served properties…"; position: absolute; inset: var(--topbar-h) 0 0 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: "IBM Plex Mono", monospace; font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--text-muted); background: var(--bg-soft); z-index: 10;
+    }
+
+    .glass {
+      background: var(--glass-bg-strong);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--hairline);
+      border-radius: 0.3rem;
+      box-shadow: 0 12px 30px rgba(27, 31, 35, 0.12), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+    }
+
+    .map-overlays {
+      position: absolute;
+      top: calc(var(--topbar-h) + 1rem);
+      left: 1rem; right: 1rem; bottom: 1rem;
+      pointer-events: none;
+      display: flex; flex-direction: column; gap: 0.85rem;
+      z-index: 20;
+    }
+    .map-overlays > * { pointer-events: auto; }
+
+    .title-overlay {
+      align-self: flex-start;
+      max-width: 22rem;
+      padding: 0.95rem 1.1rem;
+      border-top: 3px solid var(--rr-red);
+    }
+    .title-overlay-eyebrow {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.625rem; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--text-muted); margin: 0 0 0.4rem; font-weight: 500;
+    }
+    .title-overlay-title {
+      font-family: "IBM Plex Sans", sans-serif; font-weight: 700;
+      font-size: 1.05rem; line-height: 1.2; color: var(--text-primary);
+      margin: 0 0 0.5rem;
+    }
+    .title-overlay-stats {
+      font-family: "IBM Plex Mono", monospace; font-size: 0.75rem;
+      color: var(--text-body); font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+    }
+    .title-overlay-stats .sep { color: var(--text-faint); margin-inline: 0.4rem; }
+    .title-overlay-stats .accent { color: var(--rr-red); font-weight: 600; }
+
+    .filter-overlay {
+      align-self: flex-start;
+      width: 22rem; max-width: calc(100vw - 2rem);
+      display: flex; flex-direction: column;
+      max-height: calc(100vh - var(--topbar-h) - 18rem);
+      min-height: 0;
+    }
+    .filter-overlay-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+      padding: 0.7rem 0.95rem;
+      border-bottom: 1px solid var(--hairline);
+    }
+    .filter-overlay-title {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.65rem; letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--text-muted); font-weight: 500; margin: 0;
+    }
+    .filter-overlay-toggle {
+      background: transparent; color: var(--text-muted);
+      border: 1px solid transparent; border-radius: 0.2rem;
+      font-family: "IBM Plex Mono", monospace; font-size: 0.85rem; padding: 0.1rem 0.5rem;
+      transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+      line-height: 1;
+    }
+    .filter-overlay-toggle:hover { color: var(--text-primary); border-color: var(--hairline); }
+
+    .tier-pills {
+      display: flex; flex-wrap: wrap; gap: 0.4rem;
+      padding: 0.75rem 0.95rem 0.6rem;
+    }
+    .tier-pill {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      background: transparent; color: var(--text-body);
+      border: 1px solid var(--hairline); border-radius: 999px;
+      padding: 0.3rem 0.65rem 0.3rem 0.5rem;
+      font-size: 0.75rem; font-weight: 500;
+      transition: background 150ms ease, color 150ms ease, border-color 150ms ease, opacity 150ms ease;
+    }
+    .tier-pill .swatch { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .tier-pill:hover { border-color: var(--hairline-strong); background: var(--bg-soft); }
+    .tier-pill.is-off { color: var(--text-faint); opacity: 0.55; }
+    .tier-pill.is-off .swatch { opacity: 0.35; }
+
+    .filter-overlay-divider {
+      padding: 0.4rem 0.95rem 0.45rem;
+      font-family: "IBM Plex Mono", monospace; font-size: 0.625rem;
+      letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--text-faint); border-top: 1px solid var(--hairline-soft);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .filter-overlay-clear {
+      background: transparent; color: var(--rr-red);
+      border: none; border-radius: 0.2rem;
+      font-family: "IBM Plex Mono", monospace; font-size: 0.625rem; letter-spacing: 0.14em; text-transform: uppercase;
+      padding: 0.2rem 0.4rem;
+    }
+    .filter-overlay-clear:hover:not(:disabled) { background: var(--rr-red-soft); }
+    .filter-overlay-clear:disabled { color: var(--text-faint); cursor: default; }
+
+    .industry-list { flex: 1; overflow-y: auto; padding-bottom: 0.4rem; min-height: 0; }
+    .industry-row {
+      display: grid; grid-template-columns: 1rem 1fr auto; gap: 0.55rem; align-items: center;
+      width: 100%; text-align: left;
+      background: transparent; border: none;
+      padding: 0.42rem 0.95rem;
+      color: var(--text-body); font-size: 0.78rem;
+      transition: background 120ms ease;
+      border-left: 2px solid transparent;
+      font-family: "IBM Plex Sans", sans-serif;
+    }
+    .industry-row:hover { background: var(--bg-soft); }
+    .industry-row.is-active {
+      background: rgba(155, 44, 44, 0.05);
+      border-left-color: var(--rr-red);
+    }
+    .industry-swatch { width: 9px; height: 9px; border-radius: 50%; justify-self: start; }
+    .industry-name { color: var(--text-body); line-height: 1.3; word-break: break-word; }
+    .industry-row.is-active .industry-name { color: var(--text-primary); font-weight: 600; }
+    .industry-count { font-variant-numeric: tabular-nums; color: var(--text-muted); font-size: 0.7rem; white-space: nowrap; font-family: "IBM Plex Mono", monospace; }
+
+    .filter-overlay.is-collapsed .tier-pills,
+    .filter-overlay.is-collapsed .filter-overlay-divider,
+    .filter-overlay.is-collapsed .industry-list { display: none; }
+    .filter-overlay.is-collapsed { max-height: none; }
+
+    /* Bottom-left controls */
+    .map-misc-overlay {
+      position: absolute; bottom: 1rem; left: 1rem; z-index: 18;
+      display: flex; flex-direction: column; gap: 0.5rem;
+      align-items: flex-start;
+    }
+    .map-toggle, .basemap-toggle-group {
+      padding: 0.4rem 0.7rem;
+      font-size: 0.72rem; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .map-toggle {
+      display: inline-flex; align-items: center; gap: 0.55rem;
+      color: var(--text-body);
+    }
+    .map-toggle input { accent-color: var(--rr-red); }
+    .basemap-toggle-group { display: inline-flex; padding: 0.25rem; gap: 0.2rem; }
+    .basemap-btn {
+      background: transparent; color: var(--text-muted); border: none;
+      padding: 0.3rem 0.65rem; border-radius: 0.2rem;
+      font-family: inherit; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+      transition: background 150ms ease, color 150ms ease;
+    }
+    .basemap-btn:hover { color: var(--text-primary); background: var(--bg-soft); }
+    .basemap-btn.is-active { background: var(--text-primary); color: var(--bg-surface); }
+
+    /* MapLibre nav controls */
+    .maplibregl-ctrl-top-right { top: calc(var(--topbar-h) + 1rem) !important; right: 1rem !important; }
+    .maplibregl-ctrl-bottom-right { bottom: 1rem !important; right: 1rem !important; }
+
+    /* ==== Drawer ==== */
+    .drawer-backdrop {
+      position: fixed; inset: 0; z-index: 70;
+      background: rgba(27, 31, 35, 0.35);
+      opacity: 0; pointer-events: none;
+      transition: opacity 220ms ease;
+    }
+    .drawer-backdrop.is-visible { opacity: 1; pointer-events: auto; }
+
+    .drawer {
+      position: fixed; top: 0; right: 0; bottom: 0;
+      width: 38rem; max-width: 100%;
+      background: var(--bg-soft); color: var(--text-body);
+      border-left: 1px solid var(--hairline);
+      box-shadow: -16px 0 40px rgba(27, 31, 35, 0.18);
+      transform: translateX(100%);
+      transition: transform 260ms ease;
+      z-index: 80;
+      display: flex; flex-direction: column;
+    }
+    .drawer.is-open { transform: translateX(0); }
+
+    .drawer-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--hairline);
+      background: var(--bg-surface);
+    }
+    .drawer-title {
+      font-family: "IBM Plex Mono", monospace; font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--text-muted); margin: 0; font-weight: 500;
+    }
+    .drawer-close {
+      background: transparent; color: var(--text-muted);
+      border: 1px solid var(--hairline); border-radius: 0.25rem;
+      width: 32px; height: 32px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; line-height: 1;
+      transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+    }
+    .drawer-close:hover { color: var(--rr-red); border-color: var(--rr-red); background: var(--rr-red-soft); }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 0; scroll-behavior: smooth; }
+
+    .drawer-section { padding: 2rem 1.5rem; border-bottom: 1px solid var(--hairline); }
+    @media (min-width: 700px) { .drawer-section { padding: 2.5rem 2rem; } }
+    .drawer-section:last-child { border-bottom: none; }
+    .drawer-section.lead { background: var(--bg-surface); position: relative; }
+    .drawer-section.lead::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--rr-red);
+    }
+
+    .eyebrow {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.6875rem; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--text-muted); font-weight: 500; margin: 0 0 1.25rem;
+    }
+    h1.title {
+      font-family: "IBM Plex Sans", sans-serif; font-weight: 700;
+      font-size: 2rem; line-height: 1.05; letter-spacing: -0.018em;
+      color: var(--text-primary); margin: 0 0 1rem;
+    }
+    @media (min-width: 700px) { h1.title { font-size: 2.5rem; } }
+    h1.title .accent { color: var(--rr-red); }
+
+    h2.subtitle {
+      font-family: "IBM Plex Mono", monospace; font-weight: 500;
+      font-size: 0.85rem; line-height: 1.3; letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--rr-red); margin: 0 0 1.25rem;
+    }
+
+    .lede { font-size: 0.95rem; line-height: 1.65; color: var(--text-body); margin: 0; font-weight: 400; }
+    @media (min-width: 700px) { .lede { font-size: 1rem; } }
+    .lede em { color: var(--text-primary); font-style: italic; font-weight: 500; }
+
+    .stats {
+      margin-top: 1.5rem;
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 0;
+      border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);
+    }
+    .stat { padding: 0.85rem 1rem; border-bottom: 1px solid var(--hairline); border-right: 1px solid var(--hairline); }
+    .stat:nth-child(2n) { border-right: none; }
+    .stat:nth-last-child(-n+2) { border-bottom: none; }
+    .stat-key { font-family: "IBM Plex Mono", monospace; font-size: 0.65rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-faint); margin: 0 0 0.35rem; font-weight: 500; line-height: 1.3; }
+    .stat-value { font-family: "IBM Plex Sans", sans-serif; font-size: 1.15rem; font-weight: 600; color: var(--text-primary); margin: 0; font-variant-numeric: tabular-nums; line-height: 1.15; }
+    .stat-value sup { font-size: 0.6rem; font-weight: 400; color: var(--text-muted); margin-left: 0.15rem; vertical-align: super; cursor: help; }
+
+    .section-eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--rr-red); margin: 0 0 0.85rem; font-weight: 500; }
+    .section-title { font-family: "IBM Plex Sans", sans-serif; font-weight: 700; font-size: 1.3rem; line-height: 1.25; margin: 0 0 1.25rem; color: var(--text-primary); }
+
+    .findings-grid {
+      display: grid; grid-template-columns: 1fr; gap: 0;
+      border-top: 2px solid var(--rr-red);
+      border-bottom: 1px solid var(--hairline);
+      background: var(--bg-surface);
+    }
+    .finding { padding: 1.05rem 1.2rem; border-bottom: 1px solid var(--hairline); }
+    .finding:last-child { border-bottom: none; }
+    .finding-key { font-family: "IBM Plex Mono", monospace; font-size: 0.65rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 0.35rem; font-weight: 500; line-height: 1.3; }
+    .finding-value { font-family: "IBM Plex Sans", sans-serif; font-weight: 700; font-size: 1.65rem; line-height: 1.05; color: var(--rr-red); margin: 0 0 0.3rem; font-variant-numeric: tabular-nums; }
+    .finding-label { font-size: 0.8125rem; color: var(--text-body); margin: 0; line-height: 1.4; }
+
+    .notes-block p { color: var(--text-body); line-height: 1.7; font-size: 0.9rem; margin: 0 0 1rem; }
+    .notes-block ol, .notes-block ul { color: var(--text-body); line-height: 1.7; font-size: 0.9rem; padding-left: 1.4rem; margin: 0 0 1rem; }
+    .notes-block li { margin-bottom: 0.4rem; }
+    .notes-block li::marker { color: var(--rr-red); }
+    .notes-block strong { color: var(--text-primary); font-weight: 600; }
+    .source-row {
+      display: grid; grid-template-columns: 7.5rem 1fr; gap: 1rem;
+      padding: 0.5rem 0; border-top: 1px solid var(--hairline); font-size: 0.85rem;
+    }
+    .source-key { font-family: "IBM Plex Mono", monospace; font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-faint); font-weight: 500; }
+    .source-value { color: var(--text-body); }
+    .source-value code { font-family: "IBM Plex Mono", monospace; font-size: 0.8rem; color: var(--rr-red); background: var(--rr-red-soft); padding: 0.1rem 0.3rem; border-radius: 0.2rem; }
+
+    .drawer-foot {
+      padding: 1.25rem 1.5rem 2rem;
+      font-size: 0.75rem; color: var(--text-muted); background: var(--bg-deep);
+      border-top: 1px solid var(--hairline);
+    }
+    .drawer-foot .links { margin-top: 0.5rem; display: flex; gap: 1rem; flex-wrap: wrap; }
+
+    /* MapLibre overrides */
+    .maplibregl-ctrl-attrib { font-family: "IBM Plex Mono", monospace !important; font-size: 9px !important; background: rgba(255, 255, 255, 0.85) !important; }
+    .maplibregl-ctrl-attrib a { color: var(--text-muted) !important; }
+    .maplibregl-ctrl-logo { display: none !important; }
+    .maplibregl-ctrl-group { background: var(--bg-surface) !important; border: 1px solid var(--hairline) !important; }
+    .maplibregl-ctrl-group button { color: var(--text-body) !important; }
+    .maplibregl-ctrl-group button:hover { background-color: var(--bg-soft) !important; }
+    .maplibregl-ctrl-scale { background: rgba(255, 255, 255, 0.92) !important; color: var(--text-body) !important; border: 1px solid var(--hairline) !important; border-top: none !important; font-size: 11px !important; font-family: "IBM Plex Mono", monospace !important; }
+
+    .maplibregl-popup-content {
+      font-family: "IBM Plex Sans", sans-serif !important;
+      background: var(--bg-surface) !important;
+      border: 1px solid var(--hairline);
+      border-radius: 0.25rem;
+      padding: 1rem 1.1rem !important;
+      box-shadow: 0 16px 36px rgba(27, 31, 35, 0.18) !important;
+      color: var(--text-body); max-width: 320px;
+    }
+    .maplibregl-popup-tip { border-top-color: var(--bg-surface) !important; border-bottom-color: var(--bg-surface) !important; }
+    .maplibregl-popup-close-button { color: var(--text-muted) !important; font-size: 18px !important; padding: 0 6px !important; }
+    .maplibregl-popup-close-button:hover { color: var(--text-primary) !important; background: transparent !important; }
+    .popup-tier {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-family: "IBM Plex Mono", monospace; font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 0.5rem;
+    }
+    .popup-tier .swatch { width: 8px; height: 8px; border-radius: 50%; }
+    .popup-owner { font-weight: 700; font-size: 1rem; color: var(--text-primary); margin-bottom: 0.6rem; line-height: 1.3; }
+    .popup-row { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.8125rem; padding: 0.18rem 0; border-top: 1px solid var(--hairline-soft); }
+    .popup-row .k { font-family: "IBM Plex Mono", monospace; font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); font-weight: 500; }
+    .popup-row .v { font-variant-numeric: tabular-nums; color: var(--text-body); text-align: right; word-break: break-word; }
+    .popup-link {
+      display: inline-block; margin-top: 0.7rem;
+      font-size: 0.8125rem; font-weight: 600; color: var(--rr-red);
+      text-decoration: underline; text-decoration-color: rgba(155, 44, 44, 0.4);
+    }
+
+    @media (max-width: 720px) {
+      .filter-overlay { width: calc(100vw - 2rem); max-width: 22rem; }
+      .title-overlay { max-width: calc(100vw - 2rem); }
+      .drawer { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="https://github.com/aschulz714/alex-schulz" class="brand">← Alex Schulz</a>
+      <span class="topbar-center">WA Rail-Served Properties</span>
+      <nav class="topbar-nav">
+        <button type="button" data-drawer="overview">About</button>
+        <button type="button" data-drawer="findings">Findings</button>
+        <button type="button" data-drawer="methodology">Methodology</button>
+        <a href="https://github.com/aschulz714/wa-rail-properties" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Map -->
+  <section class="map-area map-loading" id="map-area">
+    <div id="map"></div>
+
+    <div class="map-overlays">
+      <div class="title-overlay glass">
+        <p class="title-overlay-eyebrow">WA · Industrial real estate inventory</p>
+        <p class="title-overlay-title">Where freight rail crosses the property line.</p>
+        <p class="title-overlay-stats">
+          <span id="t-parcels">671</span> parcels
+          <span class="sep">·</span>
+          <span class="accent">$<span id="t-value">9.3B</span></span> assessed
+          <span class="sep">·</span>
+          <span id="t-counties">29</span> counties
+        </p>
+      </div>
+
+      <div class="filter-overlay glass" id="filter-overlay">
+        <div class="filter-overlay-header">
+          <p class="filter-overlay-title">Filter parcels</p>
+          <button type="button" class="filter-overlay-toggle" id="filter-collapse" aria-label="Collapse filter">−</button>
+        </div>
+        <div class="tier-pills" role="group" aria-label="Industry tier filter">
+          <button type="button" class="tier-pill" data-tier="agriculture">
+            <span class="swatch" style="background: #8B9A4F"></span>Agriculture &amp; Food
+          </button>
+          <button type="button" class="tier-pill" data-tier="heavy">
+            <span class="swatch" style="background: #3F4751"></span>Heavy Industry
+          </button>
+          <button type="button" class="tier-pill" data-tier="energy">
+            <span class="swatch" style="background: #9B2C2C"></span>Energy
+          </button>
+          <button type="button" class="tier-pill" data-tier="logistics">
+            <span class="swatch" style="background: #234E70"></span>Logistics
+          </button>
+          <button type="button" class="tier-pill" data-tier="other">
+            <span class="swatch" style="background: #8B8779"></span>Other
+          </button>
+        </div>
+        <div class="filter-overlay-divider">
+          <span>Or drill into one industry</span>
+          <button type="button" id="industry-clear" class="filter-overlay-clear" disabled>Clear</button>
+        </div>
+        <div class="industry-list" id="industry-list" role="listbox"></div>
+      </div>
+    </div>
+
+    <div class="map-misc-overlay">
+      <div class="basemap-toggle-group glass" role="group" aria-label="Basemap">
+        <button type="button" class="basemap-btn is-active" data-basemap="light">Map</button>
+        <button type="button" class="basemap-btn" data-basemap="satellite">Satellite</button>
+      </div>
+      <label class="map-toggle glass">
+        <input type="checkbox" id="rail-toggle" checked />
+        <span>Show rail network</span>
+      </label>
+    </div>
+  </section>
+
+  <!-- Drawer (slides in from right) -->
+  <div class="drawer-backdrop" id="drawer-backdrop"></div>
+  <aside class="drawer" id="drawer" aria-label="About this map" aria-hidden="true">
+    <header class="drawer-header">
+      <p class="drawer-title">About this map</p>
+      <button type="button" class="drawer-close" id="drawer-close" aria-label="Close drawer">×</button>
+    </header>
+    <div class="drawer-body" id="drawer-body">
+
+      <section class="drawer-section lead" id="drawer-overview">
+        <p class="eyebrow">Industrial real estate inventory · Washington State</p>
+        <h1 class="title"><span class="accent">$9.3 billion</span> of rail-served industrial real estate.</h1>
+        <h2 class="subtitle">Washington State · 671 parcels · 29 counties</h2>
+        <p class="lede">
+          Every parcel in Washington where a freight rail spur extends onto private property —
+          connecting the site directly to the North American rail network. <em>Rail access cannot
+          be retrofitted</em>; it has to be there. The 671 parcels mapped here are the complete
+          inventory of where it is.
+        </p>
+        <dl class="stats">
+          <div class="stat">
+            <p class="stat-key">Parcels mapped</p>
+            <p class="stat-value" id="stat-parcels">—</p>
+          </div>
+          <div class="stat">
+            <p class="stat-key">Assessed value</p>
+            <p class="stat-value">$<span id="stat-value">—</span><sup title="Across 562 of 671 parcels with recorded assessor values">†</sup></p>
+          </div>
+          <div class="stat">
+            <p class="stat-key">Industries</p>
+            <p class="stat-value" id="stat-industries">—</p>
+          </div>
+          <div class="stat">
+            <p class="stat-key">Counties</p>
+            <p class="stat-value" id="stat-counties">—</p>
+          </div>
+        </dl>
+      </section>
+
+      <section class="drawer-section" id="drawer-findings">
+        <p class="section-eyebrow">Key findings</p>
+        <h3 class="section-title">What the data shows.</h3>
+        <div class="findings-grid">
+          <div class="finding">
+            <p class="finding-key">Tier dominance</p>
+            <p class="finding-value" id="finding-tier">—</p>
+            <p class="finding-label">Agriculture &amp; Food share of all parcels</p>
+          </div>
+          <div class="finding">
+            <p class="finding-key">Top 2 grain operators</p>
+            <p class="finding-value" id="finding-grain">—</p>
+            <p class="finding-label">Combined parcel count (Highline + Central WA)</p>
+          </div>
+          <div class="finding">
+            <p class="finding-key">Geographic concentration</p>
+            <p class="finding-value" id="finding-geo">—</p>
+            <p class="finding-label">King + Pierce share of state inventory</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="drawer-section notes-block" id="drawer-methodology">
+        <p class="section-eyebrow">Method &amp; sources</p>
+        <h3 class="section-title">How this was made.</h3>
+        <ol>
+          <li>Rail network from <strong>U.S. Bureau of Transportation Statistics — North American Rail Network (NARN)</strong>.</li>
+          <li>Statewide parcel layer from Washington State Geospatial Open Data Portal.</li>
+          <li>Python automation: spatial intersection of parcels with rail centerlines, manual review for false positives.</li>
+          <li>Per-parcel attributes (owner, assessed value, acreage, assessor link) joined from county GIS data.</li>
+          <li>Industry classification from county <code>USEDESC</code> field (15 categories), grouped here into 5 tiers for legibility.</li>
+          <li>Rendered with MapLibre GL JS. Light basemap from CARTO Positron; satellite basemap from ESRI World Imagery. No tracking, no API keys, no third-party tokens.</li>
+          <li>All statistics on this page are computed live from the loaded GeoJSON — no precomputation.</li>
+        </ol>
+        <div class="source-row">
+          <span class="source-key">Data vintage</span>
+          <span class="source-value">2022-02-15 (parcel attribute snapshot)</span>
+        </div>
+        <div class="source-row">
+          <span class="source-key">WA railroads</span>
+          <span class="source-value">2 Class I · 2 regional · 16 short line</span>
+        </div>
+        <div class="source-row">
+          <span class="source-key">Source code</span>
+          <span class="source-value"><code>github.com/aschulz714/wa-rail-properties</code></span>
+        </div>
+      </section>
+
+      <section class="drawer-section notes-block">
+        <p class="section-eyebrow">Notes</p>
+        <h3 class="section-title">Why rail-served real estate matters.</h3>
+        <p>
+          A rail-served property is one where a freight rail spur extends from a Class I, regional,
+          or short-line railroad onto private land — connecting the site directly to North America's
+          freight network. The cost and complexity of building a new spur (right-of-way negotiation,
+          track-grade engineering, FRA approvals) means the existing inventory is effectively
+          <strong>fixed</strong>. New rail-served properties are not being created at scale.
+        </p>
+        <p>
+          This makes rail-served industrial real estate a scarce asset class. The 671 parcels here
+          span <strong>$9.3 billion</strong> in assessed value across 562 parcels with recorded
+          values, with concentrated ownership in agriculture (grain co-ops dominate) and heavy
+          industry. Marine terminals are a small share of the parcel count but generate
+          disproportionate freight volume — a single Port of Vancouver or Tacoma terminal can move
+          more railcar loads than dozens of grain elevators combined.
+        </p>
+        <p>
+          <strong>Limits to acknowledge:</strong> 2022 snapshot, not a live feed. Assessed values
+          are missing for 109 of 671 parcels. The intersection algorithm uses public NARN data and
+          parcel centerlines — micro-sites where a spur enters at the property edge but does not
+          extend onto the parcel itself may be undercounted. Industry classification follows county
+          <code>USEDESC</code> codes and inherits any inconsistencies in those codes.
+        </p>
+      </section>
+
+      <div class="drawer-foot">
+        Map authored by Alex Schulz · Data: USDOT BTS · WA State GIS · County assessors · Built with MapLibre GL JS
+        <div class="links">
+          <a href="https://github.com/aschulz714/wa-rail-properties" target="_blank" rel="noopener">Repository ↗</a>
+          <a href="https://github.com/aschulz714/alex-schulz" target="_blank" rel="noopener">Portfolio ↗</a>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script>
+    const TIERS = {
+      agriculture: { label: 'Agriculture & Food', color: '#8B9A4F', industries: ['AGRICULTURE RELATED ACTIVITIES', 'FOOD AND KINDRED PRODUCTS', 'LUMBER AND WOOD PRODUCTS'] },
+      heavy: { label: 'Heavy Industry', color: '#3F4751', industries: ['INDUSTRIAL', 'CHEMICALS', 'METALS & RELATED INDUSTRIES', 'STONE, CLAY AND GLASS PRODUCTS'] },
+      energy: { label: 'Energy & Petroleum', color: '#9B2C2C', industries: ['PETROLEUM & RELATED INDUSTRIES'] },
+      logistics: { label: 'Logistics & Transport', color: '#234E70', industries: ['MARINE TERMINALS', 'MOTOR VEHICLE TRANSPORTATION', 'AIRCRAFT MANUFACTURING'] },
+      other: { label: 'Other', color: '#8B8779', industries: ['WASTE DISPOSAL', 'UNDEVELOPED LAND', 'GOVERNMENTAL SERVICES', 'UTILITIES'] },
+    };
+    const INDUSTRY_TO_TIER = {};
+    Object.entries(TIERS).forEach(([key, tier]) => tier.industries.forEach(ind => { INDUSTRY_TO_TIER[ind] = key; }));
+
+    const TITLE_CASE_INDUSTRIES = {
+      'AGRICULTURE RELATED ACTIVITIES': 'Agriculture',
+      'INDUSTRIAL': 'Industrial',
+      'FOOD AND KINDRED PRODUCTS': 'Food & Kindred Products',
+      'PETROLEUM & RELATED INDUSTRIES': 'Petroleum & Related',
+      'LUMBER AND WOOD PRODUCTS': 'Lumber & Wood Products',
+      'CHEMICALS': 'Chemicals',
+      'STONE, CLAY AND GLASS PRODUCTS': 'Stone, Clay & Glass',
+      'METALS & RELATED INDUSTRIES': 'Metals & Related',
+      'WASTE DISPOSAL': 'Waste Disposal',
+      'UNDEVELOPED LAND': 'Undeveloped Land',
+      'MARINE TERMINALS': 'Marine Terminals',
+      'MOTOR VEHICLE TRANSPORTATION': 'Motor Vehicle Transport',
+      'AIRCRAFT MANUFACTURING': 'Aircraft Manufacturing',
+      'GOVERNMENTAL SERVICES': 'Governmental Services',
+      'UTILITIES': 'Utilities',
+    };
+
+    const formatN = (n, digits = 0) => n.toLocaleString('en-US', { maximumFractionDigits: digits });
+    const formatPct = (n, digits = 1) => `${n.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: 0 })}%`;
+    const formatBillions = (n) => {
+      if (n >= 1e9) return (n / 1e9).toLocaleString('en-US', { maximumFractionDigits: 1 }) + 'B';
+      if (n >= 1e6) return (n / 1e6).toLocaleString('en-US', { maximumFractionDigits: 1 }) + 'M';
+      return formatN(n);
+    };
+
+    const state = {
+      activeTiers: new Set(['agriculture', 'heavy', 'energy', 'logistics', 'other']),
+      selectedIndustry: null,
+      showRailNetwork: true,
+      basemap: 'light', // 'light' | 'satellite'
+    };
+
+    const BASEMAP_TILES = {
+      light: {
+        tiles: [
+          'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+          'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+          'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+          'https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+        ],
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      },
+      satellite: {
+        tiles: [
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        ],
+        attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+      },
+    };
+
+    let map, properties, industryStats, totalCounts;
+
+    async function load() {
+      const [propsRes, networkRes, outlineRes] = await Promise.all([
+        fetch('data/rail-properties.geojson'),
+        fetch('data/rail-network.geojson'),
+        fetch('data/wa-outline.geojson'),
+      ]);
+      if (!propsRes.ok) throw new Error(`HTTP ${propsRes.status} loading properties`);
+      properties = await propsRes.json();
+      const network = await networkRes.json();
+      const outline = await outlineRes.json();
+
+      let valueSum = 0;
+      const byIndustry = new Map();
+      const byCounty = new Map();
+      const byOwner = new Map();
+      properties.features.forEach((f, i) => {
+        const p = f.properties;
+        const ind = (p.USEDESC || '').trim();
+        p._tier = INDUSTRY_TO_TIER[ind] || 'other';
+        p._industry = ind;
+        f.id = i;
+        const v = p.PARVAL == null ? null : Number(p.PARVAL);
+        if (v != null && !Number.isNaN(v) && v > 0) valueSum += v;
+        byIndustry.set(ind, (byIndustry.get(ind) || 0) + 1);
+        byCounty.set(p.COUNTY_NM, (byCounty.get(p.COUNTY_NM) || 0) + 1);
+        const owner = (p.OWNER || 'Unknown').trim();
+        byOwner.set(owner, (byOwner.get(owner) || 0) + 1);
+      });
+
+      industryStats = Array.from(byIndustry.entries())
+        .map(([ind, count]) => ({ industry: ind, tier: INDUSTRY_TO_TIER[ind] || 'other', count, share: count / properties.features.length }))
+        .sort((a, b) => b.count - a.count);
+
+      totalCounts = { parcels: properties.features.length, valueSum, industries: byIndustry.size, counties: byCounty.size };
+
+      document.getElementById('t-parcels').textContent = formatN(totalCounts.parcels);
+      document.getElementById('t-value').textContent = formatBillions(valueSum);
+      document.getElementById('t-counties').textContent = formatN(totalCounts.counties);
+      document.getElementById('stat-parcels').textContent = formatN(totalCounts.parcels);
+      document.getElementById('stat-value').textContent = formatBillions(valueSum);
+      document.getElementById('stat-industries').textContent = formatN(totalCounts.industries);
+      document.getElementById('stat-counties').textContent = formatN(totalCounts.counties);
+
+      const agShare = industryStats.filter(s => s.tier === 'agriculture').reduce((a, s) => a + s.share, 0);
+      document.getElementById('finding-tier').textContent = formatPct(agShare * 100, 1);
+      const highline = byOwner.get('HIGHLINE GRAIN GROWERS INC') || 0;
+      const central = byOwner.get('CENTRAL WASHINGTON GRAIN GROWERS INC') || 0;
+      document.getElementById('finding-grain').textContent = formatN(highline + central);
+      const king = byCounty.get('King') || 0;
+      const pierce = byCounty.get('Pierce') || 0;
+      document.getElementById('finding-geo').textContent = formatPct((king + pierce) / totalCounts.parcels * 100, 1);
+
+      renderIndustryPanel();
+      renderTierPills();
+      initMap(network, outline);
+    }
+
+    function initMap(network, outline) {
+      // Empty style — we manage our own basemap raster + overlays.
+      map = new maplibregl.Map({
+        container: 'map',
+        style: {
+          version: 8,
+          sources: {
+            'basemap-light': { type: 'raster', tiles: BASEMAP_TILES.light.tiles, tileSize: 256, attribution: BASEMAP_TILES.light.attribution, maxzoom: 19 },
+            'basemap-satellite': { type: 'raster', tiles: BASEMAP_TILES.satellite.tiles, tileSize: 256, attribution: BASEMAP_TILES.satellite.attribution, maxzoom: 19 },
+          },
+          layers: [
+            { id: 'basemap-light', type: 'raster', source: 'basemap-light', layout: { visibility: 'visible' } },
+            { id: 'basemap-satellite', type: 'raster', source: 'basemap-satellite', layout: { visibility: 'none' } },
+          ],
+        },
+        center: [-120.5, 47.3],
+        zoom: 6.5,
+        attributionControl: { compact: true },
+      });
+      map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
+      map.addControl(new maplibregl.ScaleControl({ unit: 'imperial' }), 'bottom-right');
+
+      let hovered = null;
+
+      map.on('load', () => {
+        document.getElementById('map-area').classList.remove('map-loading');
+
+        // WA state outline.
+        map.addSource('wa-outline', { type: 'geojson', data: outline });
+        map.addLayer({
+          id: 'wa-outline', type: 'line', source: 'wa-outline',
+          paint: {
+            'line-color': '#1B1F23',
+            'line-width': 1,
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.65, 9, 0.4, 12, 0],
+          },
+        });
+
+        // Rail network.
+        map.addSource('rail-network', { type: 'geojson', data: network });
+        map.addLayer({
+          id: 'rail-network', type: 'line', source: 'rail-network',
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: {
+            'line-color': '#1B1F23',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.5, 8, 0.7, 11, 1.3, 14, 2],
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.45, 9, 0.55, 12, 0.7],
+            'line-dasharray': [3, 1.5],
+          },
+        });
+
+        // Properties — colored circle layer.
+        map.addSource('properties', { type: 'geojson', data: properties });
+        map.addLayer({
+          id: 'properties-circles', type: 'circle', source: 'properties',
+          paint: {
+            'circle-color': ['match', ['get', '_tier'],
+              'agriculture', '#8B9A4F',
+              'heavy', '#3F4751',
+              'energy', '#9B2C2C',
+              'logistics', '#234E70',
+              '#8B8779',
+            ],
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 4, 9, 8, 12, 12, 15, 16],
+            'circle-stroke-width': ['case', ['boolean', ['feature-state', 'hover'], false], 3, 1.5],
+            'circle-stroke-color': '#FFFFFF',
+            'circle-opacity': 0.92,
+          },
+        });
+
+        applyFilter();
+        applyRailVisibility();
+
+        // Hover handling on circles (icons aren't interactive — circle catches clicks).
+        map.on('mousemove', 'properties-circles', (e) => {
+          if (!e.features.length) return;
+          map.getCanvas().style.cursor = 'pointer';
+          if (hovered !== null) map.setFeatureState({ source: 'properties', id: hovered }, { hover: false });
+          hovered = e.features[0].id;
+          map.setFeatureState({ source: 'properties', id: hovered }, { hover: true });
+        });
+        map.on('mouseleave', 'properties-circles', () => {
+          map.getCanvas().style.cursor = '';
+          if (hovered !== null) map.setFeatureState({ source: 'properties', id: hovered }, { hover: false });
+          hovered = null;
+        });
+
+        map.on('click', 'properties-circles', (e) => {
+          if (!e.features.length) return;
+          const p = e.features[0].properties;
+          const tier = TIERS[p._tier || 'other'];
+          const indLabel = TITLE_CASE_INDUSTRIES[p._industry] || p._industry;
+          const owner = (p.OWNER || 'Unknown').trim();
+          const address = [p.ADDRESS, p.CITY, p.ZIP].filter(Boolean).join(', ');
+          const value = p.PARVAL ? '$' + Number(p.PARVAL).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—';
+          new maplibregl.Popup({ closeButton: true, maxWidth: '320px' })
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div class="popup-tier"><span class="swatch" style="background: ${tier.color}"></span>${tier.label} · ${indLabel}</div>
+              <div class="popup-owner">${escapeHtml(owner)}</div>
+              <div class="popup-row"><span class="k">County</span><span class="v">${escapeHtml(p.COUNTY_NM || '—')}</span></div>
+              ${address ? `<div class="popup-row"><span class="k">Address</span><span class="v">${escapeHtml(address)}</span></div>` : ''}
+              <div class="popup-row"><span class="k">Acres</span><span class="v">${escapeHtml(String(p.ACRES || '—'))}</span></div>
+              <div class="popup-row"><span class="k">Assessed</span><span class="v">${escapeHtml(value)}</span></div>
+              <div class="popup-row"><span class="k">Parcel ID</span><span class="v">${escapeHtml(p.PARCEL_ID || '—')}</span></div>
+              ${p.DATA_LINK ? `<a class="popup-link" href="${p.DATA_LINK}" target="_blank" rel="noopener noreferrer">Open assessor record ↗</a>` : ''}
+            `)
+            .addTo(map);
+        });
+      });
+
+      map.on('error', (e) => console.warn('[map]', e?.error?.message || e));
+    }
+
+    function applyFilter() {
+      if (!map || !map.getLayer('properties-circles')) return;
+      const filters = [];
+      if (state.selectedIndustry) {
+        filters.push(['==', ['get', '_industry'], state.selectedIndustry]);
+      } else if (state.activeTiers.size < 5) {
+        filters.push(['in', ['get', '_tier'], ['literal', Array.from(state.activeTiers)]]);
+      }
+      const combined = filters.length === 0 ? null : filters.length === 1 ? filters[0] : ['all', ...filters];
+      map.setFilter('properties-circles', combined);
+    }
+
+    function applyRailVisibility() {
+      if (!map || !map.getLayer('rail-network')) return;
+      map.setLayoutProperty('rail-network', 'visibility', state.showRailNetwork ? 'visible' : 'none');
+    }
+
+    function applyBasemap() {
+      if (!map || !map.getLayer('basemap-light')) return;
+      map.setLayoutProperty('basemap-light', 'visibility', state.basemap === 'light' ? 'visible' : 'none');
+      map.setLayoutProperty('basemap-satellite', 'visibility', state.basemap === 'satellite' ? 'visible' : 'none');
+      // Adapt foreground layer styling for satellite contrast.
+      if (state.basemap === 'satellite') {
+        if (map.getLayer('rail-network')) {
+          map.setPaintProperty('rail-network', 'line-color', '#FFC857');
+          map.setPaintProperty('rail-network', 'line-opacity', ['interpolate', ['linear'], ['zoom'], 6, 0.7, 9, 0.85, 12, 1.0]);
+        }
+        if (map.getLayer('wa-outline')) {
+          map.setPaintProperty('wa-outline', 'line-color', '#FFFFFF');
+          map.setPaintProperty('wa-outline', 'line-opacity', ['interpolate', ['linear'], ['zoom'], 6, 0.85, 9, 0.6, 12, 0]);
+        }
+      } else {
+        if (map.getLayer('rail-network')) {
+          map.setPaintProperty('rail-network', 'line-color', '#1B1F23');
+          map.setPaintProperty('rail-network', 'line-opacity', ['interpolate', ['linear'], ['zoom'], 6, 0.45, 9, 0.55, 12, 0.7]);
+        }
+        if (map.getLayer('wa-outline')) {
+          map.setPaintProperty('wa-outline', 'line-color', '#1B1F23');
+          map.setPaintProperty('wa-outline', 'line-opacity', ['interpolate', ['linear'], ['zoom'], 6, 0.65, 9, 0.4, 12, 0]);
+        }
+      }
+    }
+
+    function renderTierPills() {
+      document.querySelectorAll('.tier-pill').forEach((btn) => {
+        const tier = btn.dataset.tier;
+        btn.classList.toggle('is-off', !state.activeTiers.has(tier));
+        btn.addEventListener('click', () => {
+          if (state.selectedIndustry) {
+            state.selectedIndustry = null;
+            renderIndustryPanel();
+            document.getElementById('industry-clear').disabled = true;
+          }
+          if (state.activeTiers.has(tier)) {
+            if (state.activeTiers.size === 1) return;
+            state.activeTiers.delete(tier);
+          } else {
+            state.activeTiers.add(tier);
+          }
+          btn.classList.toggle('is-off', !state.activeTiers.has(tier));
+          applyFilter();
+        });
+      });
+    }
+
+    function renderIndustryPanel() {
+      const list = document.getElementById('industry-list');
+      list.innerHTML = industryStats.map(s => {
+        const tier = TIERS[s.tier];
+        const isActive = s.industry === state.selectedIndustry;
+        const label = TITLE_CASE_INDUSTRIES[s.industry] || s.industry;
+        return `
+          <button type="button" class="industry-row ${isActive ? 'is-active' : ''}" data-industry="${escapeAttr(s.industry)}" role="option" aria-selected="${isActive}">
+            <span class="industry-swatch" style="background: ${tier.color}"></span>
+            <span class="industry-name">${escapeHtml(label)}</span>
+            <span class="industry-count">${s.count}</span>
+          </button>
+        `;
+      }).join('');
+      list.querySelectorAll('.industry-row').forEach((row) => {
+        row.addEventListener('click', () => {
+          const ind = row.dataset.industry;
+          state.selectedIndustry = state.selectedIndustry === ind ? null : ind;
+          renderIndustryPanel();
+          applyFilter();
+          document.getElementById('industry-clear').disabled = state.selectedIndustry === null;
+        });
+      });
+    }
+
+    document.getElementById('industry-clear').addEventListener('click', () => {
+      if (state.selectedIndustry === null) return;
+      state.selectedIndustry = null;
+      renderIndustryPanel();
+      applyFilter();
+      document.getElementById('industry-clear').disabled = true;
+    });
+
+    document.getElementById('rail-toggle').addEventListener('change', (e) => {
+      state.showRailNetwork = e.target.checked;
+      applyRailVisibility();
+    });
+
+    document.querySelectorAll('.basemap-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const choice = btn.dataset.basemap;
+        if (state.basemap === choice) return;
+        document.querySelectorAll('.basemap-btn').forEach(b => b.classList.toggle('is-active', b === btn));
+        state.basemap = choice;
+        applyBasemap();
+      });
+    });
+
+    // Filter overlay collapse/expand
+    const filterOverlay = document.getElementById('filter-overlay');
+    const filterCollapseBtn = document.getElementById('filter-collapse');
+    filterCollapseBtn.addEventListener('click', () => {
+      const isCollapsed = filterOverlay.classList.toggle('is-collapsed');
+      filterCollapseBtn.textContent = isCollapsed ? '+' : '−';
+      filterCollapseBtn.setAttribute('aria-label', isCollapsed ? 'Expand filter' : 'Collapse filter');
+    });
+
+    // Drawer
+    const drawer = document.getElementById('drawer');
+    const backdrop = document.getElementById('drawer-backdrop');
+    const drawerBody = document.getElementById('drawer-body');
+    function openDrawer(targetSection) {
+      drawer.classList.add('is-open');
+      drawer.setAttribute('aria-hidden', 'false');
+      backdrop.classList.add('is-visible');
+      if (targetSection) {
+        const el = document.getElementById('drawer-' + targetSection);
+        if (el) {
+          // Scroll the drawer-body so the section starts at the top.
+          setTimeout(() => { drawerBody.scrollTo({ top: el.offsetTop, behavior: 'smooth' }); }, 80);
+        }
+      } else {
+        drawerBody.scrollTop = 0;
+      }
+    }
+    function closeDrawer() {
+      drawer.classList.remove('is-open');
+      drawer.setAttribute('aria-hidden', 'true');
+      backdrop.classList.remove('is-visible');
+    }
+    document.querySelectorAll('.topbar-nav button[data-drawer]').forEach(btn => {
+      btn.addEventListener('click', () => openDrawer(btn.dataset.drawer));
+    });
+    document.getElementById('drawer-close').addEventListener('click', closeDrawer);
+    backdrop.addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drawer.classList.contains('is-open')) closeDrawer(); });
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function escapeAttr(s) { return escapeHtml(s); }
+
+    load().catch((err) => {
+      console.error(err);
+      document.getElementById('map-area').classList.remove('map-loading');
+    });
+  </script>
+</body>
+</html>
