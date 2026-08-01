@@ -2,6 +2,8 @@
 
 An interactive inventory of every parcel in Washington State with private rail access.
 
+![Statewide map of 671 rail-served parcels colored by industry tier](docs/screenshot.jpg)
+
 **Live site:** https://aschulz714.github.io/wa-rail-properties/
 
 ## What's here
