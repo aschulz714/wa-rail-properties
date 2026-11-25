@@ -573,7 +573,7 @@
           <li>Python automation: spatial intersection of parcels with rail centerlines, manual review for false positives.</li>
           <li>Per-parcel attributes (owner, assessed value, acreage, assessor link) joined from county GIS data.</li>
           <li>Industry classification from county <code>USEDESC</code> field (15 categories), grouped here into 5 tiers for legibility.</li>
-          <li>Rendered with MapLibre GL JS. Light basemap from CARTO Positron; satellite basemap from ESRI World Imagery. No tracking, no API keys, no third-party tokens.</li>
+          <li>Rendered with MapLibre GL JS. Light basemap from OpenFreeMap (Positron style, OpenStreetMap data); satellite basemap from ESRI World Imagery. No tracking, no API keys, no third-party tokens.</li>
           <li>All statistics on this page are computed live from the loaded GeoJSON — no precomputation.</li>
         </ol>
         <div class="source-row">
@@ -673,16 +673,12 @@
       basemap: 'light', // 'light' | 'satellite'
     };
 
+    // Light basemap: OpenFreeMap's Positron vector style (free, no key; its sources carry the
+    // OpenStreetMap / OpenMapTiles attribution). CARTO's keyless raster tiles now return only an
+    // "API KEY REQUIRED" watermark, so they were replaced in November 2026.
+    const LIGHT_STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
+
     const BASEMAP_TILES = {
-      light: {
-        tiles: [
-          'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-          'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-          'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-          'https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-        ],
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      },
       satellite: {
         tiles: [
           'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -751,20 +747,10 @@
     }
 
     function initMap(network, outline) {
-      // Empty style — we manage our own basemap raster + overlays.
+      // The light basemap is the vector style; the satellite raster and our overlays are added on load.
       map = new maplibregl.Map({
         container: 'map',
-        style: {
-          version: 8,
-          sources: {
-            'basemap-light': { type: 'raster', tiles: BASEMAP_TILES.light.tiles, tileSize: 256, attribution: BASEMAP_TILES.light.attribution, maxzoom: 19 },
-            'basemap-satellite': { type: 'raster', tiles: BASEMAP_TILES.satellite.tiles, tileSize: 256, attribution: BASEMAP_TILES.satellite.attribution, maxzoom: 19 },
-          },
-          layers: [
-            { id: 'basemap-light', type: 'raster', source: 'basemap-light', layout: { visibility: 'visible' } },
-            { id: 'basemap-satellite', type: 'raster', source: 'basemap-satellite', layout: { visibility: 'none' } },
-          ],
-        },
+        style: LIGHT_STYLE_URL,
         center: [-120.5, 47.3],
         zoom: 6.5,
         attributionControl: { compact: true },
@@ -776,6 +762,10 @@
 
       map.on('load', () => {
         document.getElementById('map-area').classList.remove('map-loading');
+
+        // Satellite raster sits above every basemap layer and below our overlays, hidden until chosen.
+        map.addSource('basemap-satellite', { type: 'raster', tiles: BASEMAP_TILES.satellite.tiles, tileSize: 256, attribution: BASEMAP_TILES.satellite.attribution, maxzoom: 19 });
+        map.addLayer({ id: 'basemap-satellite', type: 'raster', source: 'basemap-satellite', layout: { visibility: state.basemap === 'satellite' ? 'visible' : 'none' } });
 
         // WA state outline.
         map.addSource('wa-outline', { type: 'geojson', data: outline });
@@ -882,8 +872,8 @@
     }
 
     function applyBasemap() {
-      if (!map || !map.getLayer('basemap-light')) return;
-      map.setLayoutProperty('basemap-light', 'visibility', state.basemap === 'light' ? 'visible' : 'none');
+      if (!map || !map.getLayer('basemap-satellite')) return;
+      // The opaque satellite layer covers the vector basemap, so only it needs switching.
       map.setLayoutProperty('basemap-satellite', 'visibility', state.basemap === 'satellite' ? 'visible' : 'none');
       // Adapt foreground layer styling for satellite contrast.
       if (state.basemap === 'satellite') {
