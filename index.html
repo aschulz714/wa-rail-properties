@@ -4,7 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Washington Rail-Served Properties — Industrial Real Estate Inventory</title>
-  <meta name="description" content="An interactive inventory of every parcel in Washington State with private rail access. 671 properties, $9.3B in assessed value, 29 counties, 15 industries. Built by Alex Schulz." />
+  <meta name="description" content="An interactive inventory of every parcel in Washington State with private rail access. 671 properties, $9.4B in assessed value, 29 counties, 15 industries. Built by Alex Schulz." />
+
+  <!-- Inline icon (a short piece of track), so the page asks for no favicon file. -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%239B2C2C'/%3E%3Cpath d='M9.5 27 13.5 5M22.5 27 18.5 5M10.6 21h10.8M11.7 15h8.6M12.8 9h6.4' stroke='%23FBF8F1' stroke-width='2.2' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -69,7 +72,7 @@
       max-width: 100rem; margin-inline: auto;
     }
     @media (min-width: 768px) { .topbar-inner { padding-inline: 1.5rem; } }
-    .topbar a.brand { color: var(--text-primary); text-decoration: none; font-weight: 500; font-size: 0.875rem; letter-spacing: 0.02em; }
+    .topbar a.brand { color: var(--text-primary); text-decoration: none; font-weight: 500; font-size: 0.875rem; letter-spacing: 0.02em; white-space: nowrap; }
     .topbar a.brand:hover { color: var(--rr-red); }
     .topbar-center {
       font-family: "IBM Plex Mono", monospace;
@@ -402,6 +405,8 @@
       box-shadow: 0 16px 36px rgba(27, 31, 35, 0.18) !important;
       color: var(--text-body); max-width: 320px;
     }
+    /* A parcel popup sits above the title and filter cards (20) and below the top bar (60). */
+    .maplibregl-popup { z-index: 30; }
     .maplibregl-popup-tip { border-top-color: var(--bg-surface) !important; border-bottom-color: var(--bg-surface) !important; }
     .maplibregl-popup-close-button { color: var(--text-muted) !important; font-size: 18px !important; padding: 0 6px !important; }
     .maplibregl-popup-close-button:hover { color: var(--text-primary) !important; background: transparent !important; }
@@ -422,9 +427,36 @@
     }
 
     @media (max-width: 720px) {
-      .filter-overlay { width: calc(100vw - 2rem); max-width: 22rem; }
-      .title-overlay { max-width: calc(100vw - 2rem); }
+      .filter-overlay { width: calc(100vw - 1.2rem); max-width: 22rem; }
+      .title-overlay { max-width: calc(100vw - 1.2rem); }
       .drawer { width: 100%; }
+
+      /* Phone: smaller cards so the map shows, controls in one row along the bottom. */
+      .map-overlays { top: calc(var(--topbar-h) + 0.6rem); left: 0.6rem; right: 0.6rem; bottom: 0.6rem; gap: 0.5rem; }
+      .title-overlay { padding: 0.6rem 0.8rem 0.65rem; }
+      .title-overlay-eyebrow { margin-bottom: 0.25rem; }
+      .title-overlay-title { font-size: 0.95rem; margin-bottom: 0.3rem; }
+      .title-overlay-stats { font-size: 0.7rem; letter-spacing: 0; }
+      .title-overlay-stats .sep { margin-inline: 0.15rem; }
+      .filter-overlay { max-height: calc(100vh - var(--topbar-h) - 14rem); }
+      .filter-overlay-header { padding: 0.4rem 0.5rem 0.4rem 0.8rem; }
+      .filter-overlay-toggle { min-width: 2.25rem; min-height: 2rem; font-size: 1rem; }
+      .map-misc-overlay { flex-direction: row; flex-wrap: wrap; align-items: center; left: 0.6rem; right: 0.6rem; bottom: 0.6rem; }
+      /* Pinch to zoom on a phone; the +/- buttons would sit under the title card. */
+      .maplibregl-ctrl-top-right { display: none; }
+      /* Scale and credits sit above the bottom row instead of behind it. */
+      .maplibregl-ctrl-bottom-right { bottom: 3.5rem !important; right: 0.6rem !important; }
+    }
+
+    /* Narrow phone: the top bar becomes two rows, name and title above, the four links below. */
+    @media (max-width: 560px) {
+      :root { --topbar-h: 76px; }
+      .topbar-inner { flex-wrap: wrap; align-content: center; gap: 0.1rem 0.75rem; padding-inline: 0.75rem; }
+      .topbar-center { display: block; min-width: 0; font-size: 0.625rem; letter-spacing: 0.12em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .topbar-nav { flex: 0 0 100%; justify-content: space-between; gap: 0; margin-inline: -0.45rem; width: auto; }
+      .topbar-nav button, .topbar-nav a { padding: 0.5rem 0.45rem; font-size: 0.68rem; letter-spacing: 0.1em; }
+      /* Both cards run the full width so their edges line up. */
+      .title-overlay, .filter-overlay { align-self: stretch; width: auto; max-width: none; }
     }
   </style>
 </head>
@@ -433,7 +465,7 @@
   <!-- Topbar -->
   <header class="topbar">
     <div class="topbar-inner">
-      <a href="https://github.com/aschulz714/alex-schulz" class="brand">← Alex Schulz</a>
+      <a href="https://aschulz714.github.io/alex-schulz/" class="brand">← Alex Schulz</a>
       <span class="topbar-center">WA Rail-Served Properties</span>
       <nav class="topbar-nav">
         <button type="button" data-drawer="overview">About</button>
@@ -455,7 +487,7 @@
         <p class="title-overlay-stats">
           <span id="t-parcels">671</span> parcels
           <span class="sep">·</span>
-          <span class="accent">$<span id="t-value">9.3B</span></span> assessed
+          <span class="accent">$<span id="t-value">9.4B</span></span> assessed
           <span class="sep">·</span>
           <span id="t-counties">29</span> counties
         </p>
@@ -514,7 +546,7 @@
 
       <section class="drawer-section lead" id="drawer-overview">
         <p class="eyebrow">Industrial real estate inventory · Washington State</p>
-        <h1 class="title"><span class="accent">$9.3 billion</span> of rail-served industrial real estate.</h1>
+        <h1 class="title"><span class="accent">$9.4 billion</span> of rail-served industrial real estate.</h1>
         <h2 class="subtitle">Washington State · 671 parcels · 29 counties</h2>
         <p class="lede">
           Every parcel in Washington where a freight rail spur extends onto private property —
@@ -529,7 +561,7 @@
           </div>
           <div class="stat">
             <p class="stat-key">Assessed value</p>
-            <p class="stat-value">$<span id="stat-value">—</span><sup title="Across 562 of 671 parcels with recorded assessor values">†</sup></p>
+            <p class="stat-value">$<span id="stat-value">—</span><sup title="Across the 526 of 671 parcels with an assessed value above zero">†</sup></p>
           </div>
           <div class="stat">
             <p class="stat-key">Industries</p>
@@ -602,15 +634,15 @@
         </p>
         <p>
           This makes rail-served industrial real estate a scarce asset class. The 671 parcels here
-          span <strong>$9.3 billion</strong> in assessed value across 562 parcels with recorded
-          values, with concentrated ownership in agriculture (grain co-ops dominate) and heavy
+          span <strong>$9.4 billion</strong> in assessed value across the 526 parcels with a value
+          above zero, with concentrated ownership in agriculture (grain co-ops dominate) and heavy
           industry. Marine terminals are a small share of the parcel count but generate
           disproportionate freight volume — a single Port of Vancouver or Tacoma terminal can move
           more railcar loads than dozens of grain elevators combined.
         </p>
         <p>
-          <strong>Limits to acknowledge:</strong> 2022 snapshot, not a live feed. Assessed values
-          are missing for 109 of 671 parcels. The intersection algorithm uses public NARN data and
+          <strong>Limits to acknowledge:</strong> 2022 snapshot, not a live feed. In the source
+          files 145 of 671 parcels have no assessed value above zero: 49 carry $0 and 96 have none. The intersection algorithm uses public NARN data and
           parcel centerlines — micro-sites where a spur enters at the property edge but does not
           extend onto the parcel itself may be undercounted. Industry classification follows county
           <code>USEDESC</code> codes and inherits any inconsistencies in those codes.
@@ -621,7 +653,7 @@
         Map authored by Alex Schulz · Data: USDOT BTS · WA State GIS · County assessors · Built with MapLibre GL JS
         <div class="links">
           <a href="https://github.com/aschulz714/wa-rail-properties" target="_blank" rel="noopener">Repository ↗</a>
-          <a href="https://github.com/aschulz714/alex-schulz" target="_blank" rel="noopener">Portfolio ↗</a>
+          <a href="https://aschulz714.github.io/alex-schulz/" target="_blank" rel="noopener">Portfolio ↗</a>
         </div>
       </div>
 
@@ -710,8 +742,9 @@
         p._tier = INDUSTRY_TO_TIER[ind] || 'other';
         p._industry = ind;
         f.id = i;
-        const v = p.PARVAL == null ? null : Number(p.PARVAL);
-        if (v != null && !Number.isNaN(v) && v > 0) valueSum += v;
+        // readNumber also reads values written with commas ("56,599,400"), which Number() alone drops.
+        const v = readNumber(p.PARVAL);
+        if (v !== null) valueSum += v;
         byIndustry.set(ind, (byIndustry.get(ind) || 0) + 1);
         byCounty.set(p.COUNTY_NM, (byCounty.get(p.COUNTY_NM) || 0) + 1);
         const owner = (p.OWNER || 'Unknown').trim();
@@ -748,13 +781,25 @@
 
     function initMap(network, outline) {
       // The light basemap is the vector style; the satellite raster and our overlays are added on load.
-      map = new maplibregl.Map({
+      const mapOptions = {
         container: 'map',
         style: LIGHT_STYLE_URL,
         center: [-120.5, 47.3],
         zoom: 6.5,
         attributionControl: { compact: true },
-      });
+      };
+      if (isNarrow()) {
+        // Phone: open on the whole state, in the space between the cards at the top and the controls at the bottom.
+        const area = document.getElementById('map').getBoundingClientRect();
+        const cards = document.getElementById('filter-overlay').getBoundingClientRect();
+        const controls = document.querySelector('.map-misc-overlay').getBoundingClientRect();
+        const padding = { top: Math.max(0, cards.bottom - area.top) + 10, bottom: Math.max(0, area.bottom - controls.top) + 34, left: 10, right: 10 };
+        if (area.height - padding.top - padding.bottom >= 160) {
+          mapOptions.bounds = boundsOf(outline);
+          mapOptions.fitBoundsOptions = { padding };
+        }
+      }
+      map = new maplibregl.Map(mapOptions);
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
       map.addControl(new maplibregl.ScaleControl({ unit: 'imperial' }), 'bottom-right');
 
@@ -834,24 +879,68 @@
           const indLabel = TITLE_CASE_INDUSTRIES[p._industry] || p._industry;
           const owner = (p.OWNER || 'Unknown').trim();
           const address = [p.ADDRESS, p.CITY, p.ZIP].filter(Boolean).join(', ');
-          const value = p.PARVAL ? '$' + Number(p.PARVAL).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—';
-          new maplibregl.Popup({ closeButton: true, maxWidth: '320px' })
+          // The county files give a value as a number, a number with commas, "0", "Not Available", or nothing.
+          // Only a figure above zero is shown as one; the rest read "None on record".
+          const parval = readNumber(p.PARVAL);
+          const value = parval === null ? 'None on record' : '$' + parval.toLocaleString('en-US', { maximumFractionDigits: 0 });
+          const acresN = readNumber(p.ACRES);
+          const acres = acresN === null ? 'Not recorded' : String(p.ACRES).trim();
+          // On a phone the popup is narrower than the screen, opens above the dot, and the map slides so all of it shows.
+          const narrow = isNarrow();
+          const popupOptions = { closeButton: true, maxWidth: (narrow ? Math.min(320, window.innerWidth - 24) : 320) + 'px' };
+          if (narrow) popupOptions.anchor = 'bottom';
+          const popup = new maplibregl.Popup(popupOptions)
             .setLngLat(e.lngLat)
             .setHTML(`
               <div class="popup-tier"><span class="swatch" style="background: ${tier.color}"></span>${tier.label} · ${indLabel}</div>
               <div class="popup-owner">${escapeHtml(owner)}</div>
               <div class="popup-row"><span class="k">County</span><span class="v">${escapeHtml(p.COUNTY_NM || '—')}</span></div>
               ${address ? `<div class="popup-row"><span class="k">Address</span><span class="v">${escapeHtml(address)}</span></div>` : ''}
-              <div class="popup-row"><span class="k">Acres</span><span class="v">${escapeHtml(String(p.ACRES || '—'))}</span></div>
+              <div class="popup-row"><span class="k">Acres</span><span class="v">${escapeHtml(acres)}</span></div>
               <div class="popup-row"><span class="k">Assessed</span><span class="v">${escapeHtml(value)}</span></div>
               <div class="popup-row"><span class="k">Parcel ID</span><span class="v">${escapeHtml(p.PARCEL_ID || '—')}</span></div>
               ${p.DATA_LINK ? `<a class="popup-link" href="${p.DATA_LINK}" target="_blank" rel="noopener noreferrer">Open assessor record ↗</a>` : ''}
             `)
             .addTo(map);
+          if (narrow) keepPopupOnScreen(popup);
         });
       });
 
       map.on('error', (e) => console.warn('[map]', e?.error?.message || e));
+    }
+
+    function isNarrow() { return window.matchMedia('(max-width: 720px)').matches; }
+
+    // [[west, south], [east, north]] of a GeoJSON object.
+    function boundsOf(geojson) {
+      let w = 180, s = 90, e = -180, n = -90;
+      (function walk(c) {
+        if (typeof c[0] === 'number') { w = Math.min(w, c[0]); e = Math.max(e, c[0]); s = Math.min(s, c[1]); n = Math.max(n, c[1]); }
+        else c.forEach(walk);
+      })((geojson.features || [geojson]).filter(f => f.geometry).map(f => f.geometry.coordinates));
+      return [[w, s], [e, n]];
+    }
+
+    // A figure above zero from a text or number field, or null when the field holds none.
+    function readNumber(raw) {
+      if (raw == null) return null;
+      const n = Number(String(raw).replace(/[$,\s]/g, ''));
+      return Number.isFinite(n) && n > 0 ? n : null;
+    }
+
+    // Slide the map just far enough that the whole popup is inside the map area.
+    function keepPopupOnScreen(popup) {
+      const el = popup.getElement();
+      if (!el) return;
+      const area = map.getContainer().getBoundingClientRect();
+      const box = el.getBoundingClientRect();
+      const pad = 8;
+      let dx = 0, dy = 0;
+      if (box.left < area.left + pad) dx = box.left - (area.left + pad);
+      else if (box.right > area.right - pad) dx = box.right - (area.right - pad);
+      if (box.top < area.top + pad) dy = box.top - (area.top + pad);
+      else if (box.bottom > area.bottom - pad) dy = box.bottom - (area.bottom - pad);
+      if (dx || dy) map.panBy([dx, dy], { duration: 250 });
     }
 
     function applyFilter() {
@@ -970,11 +1059,15 @@
     // Filter overlay collapse/expand
     const filterOverlay = document.getElementById('filter-overlay');
     const filterCollapseBtn = document.getElementById('filter-collapse');
-    filterCollapseBtn.addEventListener('click', () => {
-      const isCollapsed = filterOverlay.classList.toggle('is-collapsed');
+    function setFilterCollapsed(isCollapsed) {
+      filterOverlay.classList.toggle('is-collapsed', isCollapsed);
       filterCollapseBtn.textContent = isCollapsed ? '+' : '−';
       filterCollapseBtn.setAttribute('aria-label', isCollapsed ? 'Expand filter' : 'Collapse filter');
-    });
+      filterCollapseBtn.setAttribute('aria-expanded', String(!isCollapsed));
+    }
+    filterCollapseBtn.addEventListener('click', () => setFilterCollapsed(!filterOverlay.classList.contains('is-collapsed')));
+    // On a phone the open panel covers the map, so it starts closed there.
+    setFilterCollapsed(isNarrow());
 
     // Drawer
     const drawer = document.getElementById('drawer');

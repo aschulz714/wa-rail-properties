@@ -9,7 +9,7 @@ An interactive inventory of every parcel in Washington State with private rail a
 ## What's here
 
 - 671 rail-served parcels mapped from the U.S. Bureau of Transportation Statistics North American Rail Network (NARN) crossed against Washington State parcel data
-- $9.3B+ in assessed value across 562 parcels with recorded values
+- $9.4B in assessed value across the 526 parcels with a value above zero
 - 29 counties · 15 industry categories · 479 unique owners
 - Filters by 5 industry tiers and individual category drill-down
 - Live-computed statistics and findings — no precomputation
